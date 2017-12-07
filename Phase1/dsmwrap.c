@@ -77,8 +77,10 @@ int main(int argc, char **argv)
    /* pour qu'il le propage à tous les autres */
    /* processus dsm */
    char port_str[7] ;
+   memset(port_str,'\0',7);
    sprintf(port_str,"%d",listen_port);
-   sendline(sock_fd, pid_str, 7);
+   printf("j'envoie port : %s\n", port_str);
+   sendline(sock_fd, port_str, 7);
 
 
    printf("Coucou c'est dsmwrap sur %s pid %d, je suis connecté\n",hostname,getpid());

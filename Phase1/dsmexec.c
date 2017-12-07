@@ -35,7 +35,7 @@ void* read_pipes(dsm_proc_t * dsm_proc){
       //printf("thread pour %d, j'essaie de lire\n",dsm_proc->connect_info.rank);
       ret = readline(dsm_proc->pipe_out_fd[0],buf, 512);
       if (ret > 0)
-        printf("machine %d : xx%sxx\n", dsm_proc->connect_info.rank,buf);
+        printf("machine %d : %s", dsm_proc->connect_info.rank,buf);
         fflush(stdout);
       if(ret == -1) printf("%s\n",strerror(errno));
       memset(buf,'\0',256);
@@ -214,7 +214,7 @@ int main(int argc, char *argv[])
       }
     }
 
-
+    printf("num_procs : %d\n", num_procs);
     for(i = 0; i < num_procs ; i++){
 
       /* on accepte les connexions des processus dsm */
@@ -222,7 +222,7 @@ int main(int argc, char *argv[])
       memset(tmp_addr_in, 0, sizeof(struct sockaddr_in));
 
       socklen_t size = sizeof(struct sockaddr_in);
-
+      printf("appel à accept\n");
       int tmp_fd = do_accept(listen_fd, (struct sockaddr*)tmp_addr_in, &size);
       printf("connecté à dsmwrap\n");
       /*  On recupere le nom de la machine distante */
@@ -241,33 +241,35 @@ int main(int argc, char *argv[])
       printf("%s\n",tmp_hostname);
 
 
+      int cur_proc;
       int j;
-      for ( j=0 ; j <num_procs ; j++){
+      for (j=0 ; j <num_procs ; j++){
         if (strcmp(tmp_hostname, proc_array[j].name) == 0){
           proc_array[j].connect_info.sock_fd = tmp_fd;
           proc_array[j].connect_info.addr_in = tmp_addr_in;
+          cur_proc = j;
         }
       }
 
       /* On recupere le pid du processus distant  */
       char pid_str[6];
 
-      readline(proc_array[j].connect_info.sock_fd, pid_str, 6);
+      readline(proc_array[cur_proc].connect_info.sock_fd, pid_str, 6);
 
       printf("pid : %s\n", pid_str);
 
-      proc_array[j].pid = atoi(pid_str);
+      proc_array[cur_proc].pid = atoi(pid_str);
 
       /* On recupere le numero de port de la socket */
       /* d'ecoute des processus distants */
       char port_str[7];
-      readline(proc_array[j].connect_info.sock_fd, port_str, 7);
+      readline(proc_array[cur_proc].connect_info.sock_fd, port_str, 7);
 
       printf("port : %s\n", port_str);
 
-      proc_array[j].connect_info.addr_in->sin_port = htons(atoi(pid_str));
+      proc_array[cur_proc].connect_info.addr_in->sin_port = htons(atoi(pid_str));
 
-      printf("connecté à machine n° %d : %s, pid %d",j,proc_array[j].name,proc_array[j].pid);
+      printf("connecté à machine n° %d : %s, pid %d\n",cur_proc,proc_array[cur_proc].name,proc_array[cur_proc].pid);
     }
 
     /* envoi du nombre de processus aux processus dsm*/
@@ -316,6 +318,7 @@ int main(int argc, char *argv[])
   /* on ferme les descripteurs proprement */
 
   /* on ferme la socket d'ecoute */
+  pause();
 }
 exit(EXIT_SUCCESS);
 }

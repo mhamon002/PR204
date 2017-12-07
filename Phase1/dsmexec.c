@@ -28,20 +28,23 @@ void sigchld_handler(int sig)
 }
 
 void* read_pipes(dsm_proc_t * dsm_proc){
+    printf("thread pour %d\n",dsm_proc->connect_info.rank);
     char buf[256];
     int ret;
     do{
-
-      ret = read(dsm_proc->pipe_out_fd[0],buf, 256);
-      if (ret != 0)
-        printf("dans le pipe %d : xx%sxx\n", dsm_proc->connect_info.rank,buf);
+      //printf("thread pour %d, j'essaie de lire\n",dsm_proc->connect_info.rank);
+      ret = readline(dsm_proc->pipe_out_fd[0],buf, 512);
+      if (ret > 0)
+        printf("machine %d : xx%sxx\n", dsm_proc->connect_info.rank,buf);
+        fflush(stdout);
+      if(ret == -1) printf("%s\n",strerror(errno));
       memset(buf,'\0',256);
     }
     while(ret != -1);
 
     printf("%d: %s\n", dsm_proc->connect_info.rank, strerror(errno));
     memset(buf,'\0',256);
-    read(dsm_proc->pipe_err_fd[0],buf, 256);
+    readline(dsm_proc->pipe_err_fd[0],buf, 256);
     printf("stderr dans le pipe %d : xx%sxx\n", dsm_proc->connect_info.rank,buf);
 }
 
@@ -50,13 +53,14 @@ int main(int argc, char *argv[])
   char buf[256];
 //  printf("%i\n",sizeof(dsm_proc_t));
   dsm_proc_t *proc_array = malloc(20*sizeof(dsm_proc_t));
-    if (argc < 3){
+  if (argc < 3){
     usage();
   }
   else {
     pid_t pid;
     int num_procs = 0;
     int i;
+
 
 
     //proc_array = calloc(20,sizeof(int)+sizeof(pid_t)+sizeof(char)*64+2*sizeof(int)*2);
@@ -90,6 +94,7 @@ int main(int argc, char *argv[])
     buf[i-1] = '\0';
     if (i>=2){
       strcat(proc_array[num_procs].name,buf);
+      proc_array[num_procs].connect_info.rank = num_procs;
 
       num_procs++;
     }
@@ -115,6 +120,8 @@ int main(int argc, char *argv[])
 
     listen_port = ntohs(listen_sockaddr_in->sin_port);
     printf("%d\n",listen_port);
+
+
     /* creation des fils */
     for(i = 0; i < num_procs ; i++) {
 
@@ -126,6 +133,7 @@ int main(int argc, char *argv[])
       /* creation du tube pour rediriger stderr */
       pipe_init(proc_array[i].pipe_err_fd);
 
+      //pid = 998;
       pid = fork();
       if(pid == -1) ERROR_EXIT("fork");
 
@@ -163,8 +171,6 @@ int main(int argc, char *argv[])
         // jump to new prog :
 
 
-        printf("coucou\n");
-        printf("coucou\n");
         execvp(newargv[0],newargv);
     //  execvp("echo",test);
         printf("exec raté : error %d, %s\n", errno, strerror(errno));
@@ -178,7 +184,7 @@ int main(int argc, char *argv[])
           fprintf(stdout,"========== %s\n",strerror(errno));
 
 
-        break;
+
       }
       else  if(pid > 0) { /* pere */
         /* fermeture des extremites des tubes non utiles */
@@ -187,9 +193,9 @@ int main(int argc, char *argv[])
         close(proc_array[i].pipe_err_fd[1]);
 
         num_procs_creat++;
-
+        printf("%d\n",proc_array[i].connect_info.rank);
         pthread_t thread;
-        pthread_create(&thread, NULL, read_pipes, proc_array + i*sizeof(dsm_proc_t));
+        pthread_create(&thread, NULL, read_pipes, &(proc_array[i]));
 /*
         int ret = 0;
         memset(buf,'\0',256);
@@ -221,12 +227,15 @@ int main(int argc, char *argv[])
       printf("connecté à dsmwrap\n");
       /*  On recupere le nom de la machine distante */
       /* 1- d'abord la taille de la chaine */
-      char* hostname_size_str;
+      char hostname_size_str[4];
       readline(tmp_fd, hostname_size_str, 4);
+      printf("%s\n",hostname_size_str);
       /* 2- puis la chaine elle-meme */
       int hostname_size = atoi(hostname_size_str);
-      char* tmp_hostname = malloc(hostname_size*sizeof(char));
 
+
+
+      char* tmp_hostname = malloc(hostname_size*sizeof(char));
       readline(tmp_fd, tmp_hostname, hostname_size);
 
       printf("%s\n",tmp_hostname);
@@ -242,7 +251,10 @@ int main(int argc, char *argv[])
 
       /* On recupere le pid du processus distant  */
       char pid_str[6];
+
       readline(proc_array[j].connect_info.sock_fd, pid_str, 6);
+
+      printf("pid : %s\n", pid_str);
 
       proc_array[j].pid = atoi(pid_str);
 
@@ -250,6 +262,8 @@ int main(int argc, char *argv[])
       /* d'ecoute des processus distants */
       char port_str[7];
       readline(proc_array[j].connect_info.sock_fd, port_str, 7);
+
+      printf("port : %s\n", port_str);
 
       proc_array[j].connect_info.addr_in->sin_port = htons(atoi(pid_str));
 

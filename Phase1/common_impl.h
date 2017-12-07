@@ -60,8 +60,8 @@ void do_connect(int fd, char* ip_addr, int port);
 
 int do_accept(int socket, struct sockaddr* addr, socklen_t* addrlen);
 
-ssize_t readline(int fd, void* str, size_t maxlen);
+ssize_t readline(int fd, char* str, size_t maxlen);
 
 
 
-ssize_t sendline(int fd, void* str, size_t maxlen);
+ssize_t sendline(int fd, char* str, size_t maxlen);

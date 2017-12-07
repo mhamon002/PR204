@@ -212,16 +212,28 @@ int do_accept(int socket, struct sockaddr* addr, socklen_t* addrlen){
   return fd_new;
 }
 
-ssize_t readline(int fd, void* str, size_t maxlen){
+ssize_t readline(int fd, char* str, size_t maxlen){
+  int num = 0;
+  do{
+    num += read(fd,str+num,1);
+  }
+  while(num != maxlen && str[num-1] != '\n');
 
-  return read(fd, str, maxlen);
+  return num;
+
 }
 
 
 
-ssize_t sendline(int fd, void* str, size_t maxlen){
-  ssize_t res = write(fd, str, maxlen);
-  return res;
+ssize_t sendline(int fd, char* str, size_t maxlen){
+  int sent = 0;
+  do{
+    sent += write(fd,str+sent,maxlen-sent);
+  }
+  while(sent != maxlen);
+
+  return sent;
+
 }
 
 

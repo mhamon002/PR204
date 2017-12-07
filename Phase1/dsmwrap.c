@@ -3,7 +3,7 @@
 int main(int argc, char **argv)
 {
 
-  printf("salut, moi c'est dsmwrap %s:%d\n",argv[1],atoi(argv[2]));
+  printf("salut, moi c'est dsmwrap ,appelé depuis %s:%d\n",argv[1],atoi(argv[2]));
   int i = 0;
   while(argv[i] != NULL){
 
@@ -42,12 +42,14 @@ int main(int argc, char **argv)
 
    int hostname_size = 64;
    char hostname[hostname_size];
+
    gethostname(hostname, hostname_size);
 
    hostname_size = 0;
    while (hostname[++hostname_size] != '\0');
 
-   char* hostname_size_str;
+   char hostname_size_str[4];
+   memset(hostname_size_str,'\0',4);
    sprintf(hostname_size_str,"%d",hostname_size);
    sendline(sock_fd, hostname_size_str, 4);
 
@@ -55,8 +57,11 @@ int main(int argc, char **argv)
    sendline(sock_fd, hostname, hostname_size);
 
    /* Envoi du pid au lanceur */
-   char* pid_str ;
+   char pid_str[6] ;
+
+   memset(pid_str,'\0',6);
    sprintf(pid_str,"%d",getpid());
+   printf("j'envoie PID : %s\n", pid_str);
    sendline(sock_fd, pid_str, 6);
 
 
@@ -71,7 +76,7 @@ int main(int argc, char **argv)
    /* Envoi du numero de port au lanceur */
    /* pour qu'il le propage à tous les autres */
    /* processus dsm */
-   char* port_str ;
+   char port_str[7] ;
    sprintf(port_str,"%d",listen_port);
    sendline(sock_fd, pid_str, 7);
 

@@ -144,7 +144,7 @@ int creer_socket_client(char* hostname_serv, char* port){
   struct addrinfo * result, *rp; //liste et element de la liste
 
   memset(&hints, 0, sizeof(struct addrinfo));
-  hints.ai_family = AF_INET;    /* Allow IPv4 or IPv6 */
+  hints.ai_family = AF_INET;    /* Allow IPv4*/
   hints.ai_socktype = SOCK_STREAM; /* Datagram socket */
 
   int s = getaddrinfo(hostname_serv, port, &hints, &result);

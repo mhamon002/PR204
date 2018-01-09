@@ -28,14 +28,14 @@ void sigchld_handler(int sig)
 }
 
 void* read_pipes(dsm_proc_t * dsm_proc){
-    printf("thread pour %d\n",dsm_proc->connect_info.rank);
+    //printf("thread pour %d\n",dsm_proc->connect_info.rank);
     char buf[256];
     int ret;
     do{
       //printf("thread pour %d, j'essaie de lire\n",dsm_proc->connect_info.rank);
       ret = readline(dsm_proc->pipe_out_fd[0],buf, 512);
       if (ret > 0)
-        printf("machine %d : %s", dsm_proc->connect_info.rank,buf);
+        printf("machine %d : \"%s\"", dsm_proc->connect_info.rank,buf);
         fflush(stdout);
       if(ret == -1) printf("%s\n",strerror(errno));
       memset(buf,'\0',256);
@@ -94,6 +94,7 @@ int main(int argc, char *argv[])
     buf[i-1] = '\0';
     if (i>=2){
       strcat(proc_array[num_procs].name,buf);
+      strcat(proc_array[num_procs].connect_info.name,buf);
       proc_array[num_procs].connect_info.rank = num_procs;
 
       num_procs++;
@@ -245,7 +246,7 @@ int main(int argc, char *argv[])
       int j;
       for (j=0 ; j <num_procs ; j++){
         if (strcmp(tmp_hostname, proc_array[j].name) == 0){
-          proc_array[j].connect_info.init_sock_fd = tmp_fd;
+          proc_array[j].init_sock_fd = tmp_fd;
           proc_array[j].connect_info.addr_in = tmp_addr_in;
           cur_proc = j;
         }
@@ -254,7 +255,7 @@ int main(int argc, char *argv[])
       /* On recupere le pid du processus distant  */
       char pid_str[6];
 
-      readline(proc_array[cur_proc].connect_info.init_sock_fd, pid_str, 6);
+      readline(proc_array[cur_proc].init_sock_fd, pid_str, 6);
 
       printf("pid : %s\n", pid_str);
 
@@ -263,11 +264,15 @@ int main(int argc, char *argv[])
       /* On recupere le numero de port de la socket */
       /* d'ecoute des processus distants */
       char port_str[7];
-      readline(proc_array[cur_proc].connect_info.init_sock_fd, port_str, 7);
+      readline(proc_array[cur_proc].init_sock_fd, port_str, 7);
 
       printf("port : %s\n", port_str);
 
-      proc_array[cur_proc].connect_info.addr_in->sin_port = htons(atoi(pid_str));
+      proc_array[cur_proc].connect_info.addr_in->sin_port = htons(atoi(port_str));
+
+
+      proc_array[cur_proc].connect_info.port = atoi(port_str);
+      printf("port : %d\n",proc_array[cur_proc].connect_info.port );
 
       printf("connecté à machine n° %d : %s, pid %d\n",cur_proc,proc_array[cur_proc].name,proc_array[cur_proc].pid);
     }
@@ -276,45 +281,54 @@ int main(int argc, char *argv[])
     for (i = 0; i < num_procs; i++) {
         memset(buf, '\0', 256);
         sprintf(buf, "%d\n",num_procs);
-        sendline(proc_array[i].connect_info.init_sock_fd, buf, strlen(buf));
+        sendline(proc_array[i].init_sock_fd, buf, strlen(buf));
     }
 
     /* envoi des rangs aux processus dsm */
     for (i = 0; i < num_procs; i++) {
         memset(buf, '\0', 256);
         sprintf(buf, "%d\n",proc_array[i].connect_info.rank);
-        sendline(proc_array[i].connect_info.init_sock_fd, buf, strlen(buf));
+        sendline(proc_array[i].init_sock_fd, buf, strlen(buf));
     }
 
     /* envoi des infos de connexion aux processus */
     int j;
     for(i = 0; i < num_procs; i++){
       for(j = 0; j < num_procs; j++){
-        memset(buf, 0, 256);
-        sprintf(buf,"%s",proc_array[j].name);
-        sendline(proc_array[i].connect_info.init_sock_fd, buf, strlen(buf)); // nom des machines
-        memset(buf,0, 256);
-        sprintf(buf, "%d", proc_array[j].connect_info.addr_in->sin_port);
-        sendline(proc_array[i].connect_info.init_sock_fd, buf, strlen(buf)); // numéro ports
+/*
+        memset(buf,0,256);
+        strncpy(buf,(char*)(&proc_array[i].connect_info),sizeof(struct dsm_proc_conn));
+        printf("%s\n",buf);
+
+        sendline(proc_array[i].init_sock_fd, buf, strlen(buf));
+*/
+
+        //rangs
+        memset(buf, '\0', 256);
+        sprintf(buf, "%d\n",proc_array[j].connect_info.rank);
+        sendline(proc_array[i].init_sock_fd, buf, strlen(buf));
+
+
+        //noms
+        memset(buf, '\0', 256);
+        sprintf(buf,"%s\n",proc_array[j].name);
+        sendline(proc_array[i].init_sock_fd, buf, strlen(buf)); // nom des machines
+
+        //ports
+        memset(buf,'\0', 256);
+        printf("%d\n",proc_array[j].connect_info.port);
+        sprintf(buf, "%d\n", proc_array[j].connect_info.port);
+        sendline(proc_array[i].init_sock_fd, buf, strlen(buf)); // numéro ports
+        //printf("envoyé %s\n",buf);
       }
     }
 
 
-    /* gestion des E/S : on recupere les caracteres */
-    /* sur les tubes de redirection de stdout/stderr */
-    /* while(1)
-    {
-    je recupere les infos sur les tubes de redirection
-    jusqu'à ce qu'ils soient inactifs (ie fermes par les
-    processus dsm ecrivains de l'autre cote ...)
 
-
-
-  };
-  */
-
-  /* on attend les processus fils */
-
+  /* on attend les processus fils
+  int c;
+  for(c = 0 ; c < num_procs ; c++) wait(NULL);
+*/
   /* on ferme les descripteurs proprement */
 
   /* on ferme la socket d'ecoute */

@@ -24,7 +24,9 @@
 /* de connexion des processus dsm */
 struct dsm_proc_conn  {
    int rank;
-   int init_sock_fd;
+   char name[64];
+   int port;
+   int sock_fd; //socket entre les dsmwrap
    struct sockaddr_in* addr_in;
    /* a completer */
 };
@@ -36,6 +38,7 @@ struct dsm_proc {
   pid_t pid;
   dsm_proc_conn_t connect_info;
   char name[64];
+  int init_sock_fd;
   int pipe_out_fd[2];
   int pipe_err_fd[2];
 };
